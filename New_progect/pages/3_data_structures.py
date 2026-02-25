@@ -1,161 +1,176 @@
 import streamlit as st
-import time
+import math
 
-# --- 1. إعدادات الصفحة والتصميم البلوري ---
-st.set_page_config(page_title="محاكي هياكل البيانات - مستويين", layout="wide")
+# --- 1. إعدادات الصفحة والتنسيق ---
+st.set_page_config(page_title="مختبر هياكل البيانات الاحترافي", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp {
-        background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e);
-        background-size: 400% 400%;
-        animation: gradient 15s ease infinite;
+    .stApp { background-color: #050510; color: white; }
+    
+    /* حاوية الرسم المتجاوبة */
+    .main-canvas {
+        position: relative;
+        width: 100%;
+        height: 600px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(0, 210, 255, 0.2);
+        border-radius: 25px;
+        margin-top: 20px;
+        overflow: hidden;
     }
-    @keyframes gradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    .glass-container {
-        background: rgba(255, 255, 255, 0.07);
-        backdrop-filter: blur(15px);
-        border-radius: 20px;
-        padding: 25px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 20px;
-    }
+
+    /* العقدة المضيئة */
     .data-node {
-        width: 80px; height: 80px;
-        background: rgba(0, 210, 255, 0.2);
+        width: 65px; height: 65px;
+        background: radial-gradient(circle, #1a1c23 0%, #050510 100%);
         border: 2px solid #00d2ff;
-        border-radius: 12px;
+        border-radius: 50%;
         display: flex; justify-content: center; align-items: center;
-        color: white; font-size: 22px; font-weight: bold;
-        transition: all 0.4s ease;
+        font-weight: bold; position: absolute;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 12px;
     }
-    .processing-node {
-        background: rgba(0, 255, 127, 0.4) !important;
-        border-color: #00ff7f !important;
-        transform: scale(1.1) translateY(-10px);
-        box-shadow: 0 0 25px #00ff7f;
+
+    /* الأسلاك الذكية */
+    .connector-svg {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 5;
+    }
+
+    /* المؤشرات البرمجية */
+    .ptr-label {
+        position: absolute;
+        color: #ff00ff;
+        font-weight: bold;
+        font-size: 13px;
+        text-shadow: 0 0 10px #ff00ff;
+        z-index: 15;
+        white-space: nowrap;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏗️ محاكي هياكل البيانات (الأسلوب التقليدي vs الدوال)")
+# --- 2. إدارة مخازن البيانات (تصحيح المفاتيح) ---
+if 'ds' not in st.session_state:
+    st.session_state.ds = {
+        "Binary Tree": ["Root", "L1", "R1"],
+        "Stack": ["Base", "Mid", "Top"],
+        "Queue": ["Front", "Mid", "Rear"],
+        "Circular List": ["C1", "C2", "C3"]
+    }
 
-# --- 2. إدارة البيانات ---
-if 'array_list' not in st.session_state:
-    st.session_state.array_list = ["50", "10", "40", "20"]
+# --- 3. الواجهة العلوية (الخيارات في الأعلى) ---
+st.title("🛡️ محاكي هياكل البيانات التفاعلي")
 
-# --- 3. الواجهة الرسومية ---
-col_editor, col_visual = st.columns([1.2, 1.2])
+# استخدام أعمدة للخيارات العلوية
+col_opt1, col_opt2, col_opt3 = st.columns([2, 2, 2])
 
-with col_editor:
-    st.markdown('<div class="glass-container">', unsafe_allow_html=True)
-    st.subheader("📝 Java Code Viewer")
-    
-    # اختيار الأسلوب البرمجي
-    code_style = st.radio("اختر أسلوب البرمجة:", ["الأسلوب التقليدي (بدون دوال)", "أسلوب الدوال (Methods)"], horizontal=True)
-    
-    # اختيار العملية
-    op = st.selectbox("اختر العملية:", ["إضافة (Insert)", "حذف (Delete)", "بحث (Search)", "ترتيب (Sort)"])
-    
-    # إدخال القيمة
-    if op != "ترتيب (Sort)":
-        input_val = st.text_input("أدخل القيمة أو الموقع:", "30")
-    else:
-        input_val = ""
+with col_opt1:
+    ds_choice = st.selectbox("اختر الهيكل:", ["Binary Tree", "Stack", "Queue", "Circular List"])
+with col_opt2:
+    new_node_val = st.text_input("قيمة العقدة الجديدة:", "Node_" + str(len(st.session_state.ds[ds_choice])))
+with col_opt3:
+    st.write("##") # للموازنة
+    btn_add, btn_del = st.columns(2)
+    if btn_add.button("➕ إضافة", use_container_width=True):
+        st.session_state.ds[ds_choice].append(new_node_val)
+        st.rerun()
+    if btn_del.button("🗑️ حذف", use_container_width=True):
+        if st.session_state.ds[ds_choice]:
+            # منطق الحذف حسب الهيكل
+            if ds_choice == "Queue":
+                st.session_state.ds[ds_choice].pop(0) # FIFO
+            else:
+                st.session_state.ds[ds_choice].pop() # LIFO / Tree
+            st.rerun()
 
-    # منطق عرض الكود بناءً على الأسلوب
-    if code_style == "الأسلوب التقليدي (بدون دوال)":
-        if op == "إضافة (Insert)":
-            final_code = f"// الكود داخل الـ main مباشرة\nlist.add(\"{input_val}\");"
-        elif op == "حذف (Delete)":
-            final_code = f"int index = {input_val if input_val.isdigit() else 0};\nlist.remove(index);"
-        elif op == "بحث (Search)":
-            final_code = f"for(int i=0; i<list.size(); i++) {{\n    if(list.get(i).equals(\"{input_val}\")) {{\n        System.out.println(\"Found\");\n    }}\n}}"
+# --- 4. محرك الحسابات الجيومترية والكود البرمجي ---
+data = st.session_state.ds[ds_choice]
+n = len(data)
+coords = [] # (x%, y%)
+java_logic = ""
+
+if ds_choice == "Binary Tree":
+    for i in range(n):
+        if i == 0: coords.append((50, 15))
         else:
-            final_code = "for(int i=0; i<n-1; i++) {\n    for(int j=0; j<n-i-1; j++) {\n        if(arr[j] > arr[j+1]) { // Swap }\n    }\n}"
-    else:
-        # أسلوب الدوال
-        if op == "إضافة (Insert)":
-            final_code = f"public void addElement(String val) {{\n    list.add(val);\n}}\n\n// الاستدعاء:\naddElement(\"{input_val}\");"
-        elif op == "حذف (Delete)":
-            final_code = f"public void removeAtIndex(int i) {{\n    list.remove(i);\n}}\n\n// الاستدعاء:\nremoveAtIndex({input_val if input_val.isdigit() else 0});"
-        elif op == "بحث (Search)":
-            final_code = f"public int findElement(String val) {{\n    return list.indexOf(val);\n}}\n\n// الاستدعاء:\nfindElement(\"{input_val}\");"
-        else:
-            final_code = "public void sortArray() {\n    Collections.sort(list);\n}\n\n// الاستدعاء:\nsortArray();"
+            lvl = int(math.log2(i + 1))
+            parent = (i - 1) // 2
+            px, py = coords[parent]
+            off = 25 / (lvl + 0.5)
+            x = px - off if i % 2 != 0 else px + off
+            coords.append((x, py + 20))
+    java_logic = f"// Binary Tree Implementation\nTreeNode root = new TreeNode('{data[0]}');\nroot.left = new TreeNode('{new_node_val}');"
 
-    st.code(final_code, language="java")
-    execute_btn = st.button("تنفيذ المحاكاة 🚀")
-    st.markdown('</div>', unsafe_allow_html=True)
+elif ds_choice == "Stack":
+    for i in range(n):
+        coords.append((50, 15 + (i * 12)))
+    java_logic = f"// Stack Implementation (LIFO)\nStack<String> stack = new Stack<>();\nstack.push('{new_node_val}');"
 
-with col_visual:
-    st.markdown('<div class="glass-container">', unsafe_allow_html=True)
-    st.subheader("📺 المحاكاة الحية")
+elif ds_choice == "Queue":
+    # عرض أفقي للطابور
+    for i in range(n):
+        coords.append((20 + (i * (60/max(n,1))), 50))
+    java_logic = f"// Queue Implementation (FIFO)\nQueue<String> queue = new LinkedList<>();\nqueue.add('{new_node_val}');"
+
+elif ds_choice == "Circular List":
+    radius = 20
+    for i in range(n):
+        angle = (2 * math.pi * i) / n
+        coords.append((50 + radius * math.cos(angle), 50 + radius * 1.2 * math.sin(angle)))
+    java_logic = f"// Circular Linked List\nNode temp = new Node('{new_node_val}');\nlast.next = temp;\ntemp.next = head;"
+
+# --- 5. العرض البصري المترابط مع الكود ---
+col_viz, col_code = st.columns([2.5, 1])
+
+with col_viz:
+    html = '<div class="main-canvas">'
+    # رسم الأسلاك (SVG)
+    svg = '<svg class="connector-svg" viewBox="0 0 100 100" preserveAspectRatio="none">'
+    for i in range(n):
+        if ds_choice == "Binary Tree" and i > 0:
+            p = (i - 1) // 2
+            svg += f'<line x1="{coords[p][0]}" y1="{coords[p][1]}" x2="{coords[i][0]}" y2="{coords[i][1]}" stroke="#ff00ff" stroke-width="0.3" />'
+        elif ds_choice == "Circular List" and n > 1:
+            nxt = (i + 1) % n
+            svg += f'<line x1="{coords[i][0]}" y1="{coords[i][1]}" x2="{coords[nxt][0]}" y2="{coords[nxt][1]}" stroke="#00d2ff" stroke-width="0.2" stroke-dasharray="1" />'
+        elif (ds_choice == "Stack" or ds_choice == "Queue") and i > 0:
+            svg += f'<line x1="{coords[i-1][0]}" y1="{coords[i-1][1]}" x2="{coords[i][0]}" y2="{coords[i][1]}" stroke="rgba(255,255,255,0.1)" stroke-width="0.1" />'
+    svg += '</svg>'
+    html += svg
+
+    # رسم العقد والمؤشرات
+    for i, (x, y) in enumerate(coords):
+        is_root_or_main = (i == 0)
+        node_color = "#ff00ff" if is_root_or_main else "#00d2ff"
+        html += f'<div class="data-node" style="left:{x}%; top:{y}%; border-color:{node_color};">{data[i]}</div>'
+        
+        # إضافة المؤشرات البرمجية
+        ptr = ""
+        if ds_choice == "Stack" and i == n-1: ptr = "TOP"
+        elif ds_choice == "Queue":
+            if i == 0: ptr = "FRONT"
+            if i == n-1: ptr = "REAR"
+        elif ds_choice == "Binary Tree" and i == 0: ptr = "ROOT"
+        
+        if ptr:
+            html += f'<div class="ptr-label" style="left:{x}%; top:{y}%; transform:translate(40px, -10px);">⬅️ {ptr}</div>'
     
-    viz_placeholder = st.empty()
-    status_log = st.empty()
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
-    def render_visuals(highlights=[]):
-        if len(st.session_state.array_list) > 0:
-            cols = viz_placeholder.columns(len(st.session_state.array_list))
-            for i, val in enumerate(st.session_state.array_list):
-                with cols[i]:
-                    style_class = "processing-node" if i in highlights else ""
-                    st.markdown(f'<div class="data-node {style_class}">{val}</div>', unsafe_allow_html=True)
-                    st.caption(f"Index {i}")
-        else:
-            viz_placeholder.warning("المصفوفة فارغة")
+with col_code:
+    st.subheader("💻 الفكر البرمجي (Java)")
+    st.code(java_logic, language="java")
+    st.write("---")
+    st.markdown(f"**الهيكل الحالي:** {ds_choice}")
+    st.markdown(f"**عدد العقد:** {n}")
+    
 
-    render_visuals()
-
-    if execute_btn:
-        if op == "إضافة (Insert)":
-            status_log.info("جاري استدعاء أمر الإضافة..." if "الدوال" in code_style else "تنفيذ سطر الإضافة...")
-            time.sleep(0.5)
-            st.session_state.array_list.append(input_val)
-            render_visuals([len(st.session_state.array_list)-1])
-            st.success("✅ تمت العملية")
-
-        elif op == "حذف (Delete)":
-            idx = int(input_val) if input_val.isdigit() else 0
-            if idx < len(st.session_state.array_list):
-                render_visuals([idx])
-                time.sleep(0.8)
-                st.session_state.array_list.pop(idx)
-                render_visuals()
-                st.success("✅ تم الحذف")
-
-        elif op == "بحث (Search)":
-            for i, v in enumerate(st.session_state.array_list):
-                render_visuals([i])
-                time.sleep(0.5)
-                if v == input_val:
-                    st.balloons()
-                    st.success("🎯 تم العثور على القيمة")
-                    break
-
-        elif op == "ترتيب (Sort)":
-            arr = st.session_state.array_list
-            n = len(arr)
-            for i in range(n):
-                for j in range(0, n-i-1):
-                    render_visuals([j, j+1])
-                    time.sleep(0.4)
-                    if int(arr[j]) > int(arr[j+1]):
-                        arr[j], arr[j+1] = arr[j+1], arr[j]
-                        render_visuals([j, j+1])
-                        time.sleep(0.4)
-            st.session_state.array_list = arr
-            render_visuals()
-            st.success("✅ الترتيب مكتمل")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-st.divider()
-st.info("💡 لاحظ الفرق: الأسلوب التقليدي يكتب الكود مباشرة، بينما أسلوب الدوال يقوم بتعريف وظيفة مستقلة ثم استدعائها باسمها.")
+st.markdown("<br><br>", unsafe_allow_html=True)
